@@ -1,0 +1,64 @@
+body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden; /* Evita scrollbars */
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .controlButton {
+            margin-right: 10px;
+            padding: 5px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .dropdown {
+            padding: 5px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .panel {
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            display: none;
+            position: absolute;
+            top: 50px;
+            right: 10px;
+        }
+
+        .option {
+            margin-bottom: 5px;
+        }
+
+        .objectList {
+            display: none;
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow-y: scroll;
+            max-height: 300px;
+            padding: 5px;
+        }
+
+        .objectItem {
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+
+        .objectItem:hover {
+            background-color: #f0f0f0;
+        }
