@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Scene with Shadows, Textures, and Material Selector</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+    <style>
+      #loadingBar {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80%;
+        background-color: #ccc;
+        display: none;
+      }
+      #loadingBar div {
+        width: 0%;
+        height: 30px;
+        background-color: #76c7c0;
+        text-align: center;
+        line-height: 30px;
+        color: white;
+      }
+      
+      h1{
+       text-align: center;
+       
+      }
+    </style>
+  </head>
+  <body>
+    <h1> e.p tree </h1>
+    <button id="toggleControlsButton" class="controlButton">Toggle Controls</button>
+    <button id="textureButton" class="controlButton">Texture</button>
+    <button id="showObjectListButton" class="controlButton">cena  Objects</button>
+    <button id="focusCameraButton" class="controlButton">Focus Camera</button>
+    <button id="toggleFPSButton" class="controlButton">FPS</button>
+    <button id="deleteObjectButton" class="controlButton">deletar objetos</button> <!-- Novo botão para deletar objetos -->
+    <button id="saveButton" class="controlButton">Save</button>
+    <button id="resetButton" class="controlButton">carregar</button>
+
+    <select id="controlsDropdown" class="dropdown">
+      <option value="translate">Position</option>
+      <option value="rotate">Rotation</option>
+      <option value="scale">Scale</option>
+    </select>
+
+    <select id="objectDropdown" class="dropdown">
+      <option value="none">None</option>
+      <option value="cube">Cube</option>
+      <option value="sphere">Sphere</option>
+      <option value="ground">Ground</option>
+      <option value="terrain">Terrain</option>
+      <option value="importObj">Import .obj Model</option>
+    </select>
+
+    <input type="file" id="objImport" style="display: none;">
+
+    <div id="texturePanel" class="panel">
+      <div class="option">
+        <label for="textureColor">Color:</label>
+        <input type="color" id="textureColor">
+      </div>
+      <div class="option">
+        <label for="textureImport">Import Texture:</label>
+        <input type="file" id="textureImport">
+      </div>
+      <div class="option">
+        <label for="textureAlbedo">Albedo:</label>
+        <input type="text" id="textureAlbedo">
+      </div>
+      <div class="option">
+        <label for="textureNormal">Normal Map:</label>
+        <input type="text" id="textureNormal">
+      </div>
+      <div class="option">
+        <label for="textureRoughness">Roughness:</label>
+        <input type="range" id="textureRoughness" min="0" max="1" step="0.01" value="1">
+      </div>
+      <div class="option">
+        <label for="textureMetalness">Metalness:</label>
+        <input type="range" id="textureMetalness" min="0" max="1" step="0.01" value="0.5">
+      </div>
+      <div class="option">
+        <label for="materialType">Material Type:</label>
+        <select id="materialType">
+          <option value="standard">Standard</option>
+          <option value="phong">Phong</option>
+          <option value="basic">Basic</option>
+          <option value="wireframe">Wireframe</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="objectList" class="objectList"></div>
+
+    <div id="loadingBar"><div>0%</div></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/TransformControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/stats.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script> <!-- Biblioteca LZString para compressão -->
+
+    <script src="js/GridHelper.js"></script>
+    <script src="js/Skybox.js"></script>
+    <script src="js/Lights.js"></script>
+    <script src="js/TransformControls.js"></script>
+    <script src="js/textura.js"></script>
+    <script src="js/objeto.js"></script>
+    <script src="js/listadeobjetos.js"></script>
+    <script src="js/focoCam.js"></script>
+    <script src="js/selectobjeto.js"></script>
+    <script src="js/focar2.js"></script>
+    <script src="js/terrain.js"></script>
+    <script src="js/delete.js"></script>
+    <script src="js/touch.js"></script>
+    <script src="js/Grafico de FPS.js"></script>
+    <script>
+      let showFPS = false;
+
+      const scene = new THREE.Scene();
+      const objectNames = []; // Array para armazenar os nomes dos objetos
+
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 5);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadow mapping for smoother shadows
+      document.body.appendChild(renderer.domElement);
+
+      createSkybox(scene);
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableZoom = true;
+
+      createGridHelper(scene);
+
+      addLights(scene);
+
+      let transformControls = addTransformControls(camera, renderer, scene);
+
+      document.getElementById('textureButton').addEventListener('click', function () {
+        const texturePanel = document.getElementById('texturePanel');
+        if (texturePanel.style.display === 'block') {
+          texturePanel.style.display = 'none';
+        } else {
+          texturePanel.style.display = 'block';
+        }
+      });
+
+      document.getElementById('toggleControlsButton').addEventListener('click', function () {
+        if (transformControls.enabled) {
+          transformControls.detach();
+        } else {
+          if (selectedObject) {
+            transformControls.attach(selectedObject);
+          }
+        }
+      });
+
+      document.getElementById('toggleFPSButton').addEventListener('click', function () {
+        showFPS = !showFPS;
+        if (showFPS) {
+          document.body.appendChild(stats.dom);
+        } else {
+          document.body.removeChild(stats.dom);
+        }
+      });
+
+      document.getElementById('deleteObjectButton').addEventListener('click', function () {
+        deleteSelectedObject();
+      });
+
+      document.getElementById('saveButton').addEventListener('click', saveSceneLocally);
+      document.getElementById('resetButton').addEventListener('click', loadSceneLocally);
+
+      // Adiciona física
+      const physics = new CANNON.World();
+      physics.gravity.set(0, -9.82, 0);
+
+      // Cria um corpo físico para cada objeto na cena
+      scene.traverse((object) => {
+        if (object.userData.physics) {
+          const shape = new CANNON.Box(new CANNON.Vec3(object.scale.x / 2, object.scale.y / 2, object.scale.z / 2));
+          const body = new CANNON.Body({
+            mass: 1,
+            shape: shape,
+            position: new CANNON.Vec3(object.position.x, object.position.y, object.position.z),
+          });
+          physics.addBody(body);
+          object.userData.physicsBody = body;
+        }
+      });
+
+      let then = Date.now();
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+
+        // Atualiza a física
+        physics.step(1 / 60);
+
+        // Atualiza as posições dos objetos com base na física
+        scene.traverse((object) => {
+          if (object.userData.physicsBody) {
+            object.position.copy(object.userData.physicsBody.position);
+            object.quaternion.copy(object.userData.physicsBody.quaternion);
+          }
+        });
+
+        renderer.render(scene, camera);
+        if (showFPS) {
+          stats.update();
+        }
+      }
+
+      function adjustTransformControlsPosition(object) {
+        const box = new THREE.Box3().setFromObject(object);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        transformControls.position.copy(center);
+      }
+
+      window.addEventListener('resize', function () {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+      });
+
+      function updateLoadingBar(percentage) {
+        const loadingBar = document.getElementById('loadingBar');
+        const loadingBarInner = loadingBar.querySelector('div');
+        loadingBarInner.style.width = percentage + '%';
+        loadingBarInner.textContent = percentage + '%';
+      }
+
+      // Função para salvar o estado da cena localmente
+      async function saveSceneLocally() {
+        document.getElementById('loadingBar').style.display = 'block';
+        updateLoadingBar(0);
+
+        const sceneData = JSON.stringify(scene.toJSON());
+        const compressedData = LZString.compress(sceneData);
+
+        for (let i = 0; i <= 100; i++) {
+          await new Promise(resolve => setTimeout(resolve, 10)); // Simulação de carregamento
+          updateLoadingBar(i);
+        }
+
+        try {
+          localStorage.setItem('savedScene', compressedData);
+          alert('Cena salva!');
+        } catch (e) {
+          alert('Falha ao salvar a cena: ' + e.message);
+        } finally {
+          document.getElementById('loadingBar').style.display = 'none';
+        }
+      }
+
+      // Função para carregar o estado da cena localmente
+      async function loadSceneLocally() {
+        document.getElementById('loadingBar').style.display = 'block';
+        updateLoadingBar(0);
+
+        const savedScene = localStorage.getItem('savedScene');
+        if (savedScene) {
+          const decompressedData = LZString.decompress(savedScene);
+          const sceneData = JSON.parse(decompressedData);
+
+          const loader = new THREE.ObjectLoader();
+          const loadedScene = loader.parse(sceneData);
+
+          for (let i = 0; i <= 100; i++) {
+            await new Promise(resolve => setTimeout(resolve, 10)); // Simulação de carregamento
+            updateLoadingBar(i);
+          }
+
+          scene.children.forEach(child => {
+            if (!(child instanceof THREE.GridHelper) && !(child instanceof THREE.Light)) {
+              scene.remove(child);
+            }
+          });
+
+          scene.add(loadedScene);
+          alert('Cena carregada!');
+          transformControls = addTransformControls(camera, renderer, scene);
+        }
+
+        document.getElementById('loadingBar').style.display = 'none';
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
